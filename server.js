@@ -1,9 +1,17 @@
 const express = require("express");
 const cors = require("cors");
+const morgan = require("morgan");
 const app = express();
 app.use(cors());
 
 app.use(express.json());
+app.use(morgan("combined"));
+
+morgan.token("id", function getId(req) {
+  return req.id;
+});
+
+app.use(morgan(":id :method :url :response-time"));
 
 app.post("/api", (req, res) => {
   const { password } = req.body;
