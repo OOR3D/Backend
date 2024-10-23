@@ -5,7 +5,7 @@ app.use(cors());
 
 app.use(express.json());
 
-app.post("/", (req, res) => {
+app.post("/api", (req, res) => {
   const { password } = req.body;
 
   const storedPassword = "password"; //don't store password in the code in production
