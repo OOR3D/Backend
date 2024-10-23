@@ -1,0 +1,62 @@
+name: Deploy to EC2 with SSH Key Preparation  
+
+on:  
+  push:  
+    branches:  
+      - main  
+
+jobs:  
+  deploy:  
+    runs-on: ubuntu-latest  
+
+    container:  
+      image: alpine:latest   
+
+    steps:  
+      - name: Install Dependencies  
+        run: apk add --no-cache openssh-client git  
+
+      - name: Checkout repository  
+        uses: actions/checkout@v3  
+
+      - name: Prepare SSH Key  
+        env:  
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}  
+        run: |  
+          # Prepare the private key from an environment variable  
+          PRIVATE_KEY_PATH="$(mktemp)"  
+          
+          # Extract the header  
+          HEADER=$(echo "$EC2_SSH_KEY" | grep -o -e "-----BEGIN [^-]* PRIVATE KEY-----")  
+          
+          # Extract the footer  
+          FOOTER=$(echo "$EC2_SSH_KEY" | grep -o -e "-----END [^-]* PRIVATE KEY-----")  
+          
+          # Remove the header and footer to isolate the body  
+          BODY=$(echo "$EC2_SSH_KEY" | sed -e "s/$HEADER//" | sed -e "s/$FOOTER//")  
+          
+          # Format the body of the key: Insert a newline every 64 characters  
+          FORMATTED_BODY=$(echo "$BODY" | fold -w 64)  
+          
+          # Combine the formatted parts into one key, adding newlines after header and before footer  
+          FORMATTED_KEY="$HEADER\n$FORMATTED_BODY\n$FOOTER"  
+          
+          # Print the key to key file  
+          echo -e "$FORMATTED_KEY" > "$PRIVATE_KEY_PATH"  
+          
+          # Set 600 permission to private key file  
+          chmod 600 "$PRIVATE_KEY_PATH"  
+
+          # Export the path to use in the next step  
+          echo "PRIVATE_KEY_PATH=$PRIVATE_KEY_PATH" >> $GITHUB_ENV  
+
+      - name: Connect to EC2 and Pull Latest Code  
+        env:  
+          PRIVATE_KEY_PATH: ${{ env.PRIVATE_KEY_PATH }}  
+          EC2_HOST: ${{ secrets.EC2_HOST }}  
+        run: |  
+          set -x  
+          ssh -o StrictHostKeyChecking=no -i "$PRIVATE_KEY_PATH" "ubuntu@$EC2_HOST" << 'ENDSSH'  
+            cd ./Backend  # Replace with your project directory  
+            git pull  
+          ENDSSH
