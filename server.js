@@ -16,7 +16,7 @@ app.use(morgan(":id :method :url :response-time"));
 app.post("/api", (req, res) => {
   const { password } = req.body;
 
-  const storedPassword = "password"; //don't store password in the code in production
+  const storedPassword = "Pass99osorioxmfmgnt"; //don't store password in the code in production
 
   if (password === storedPassword) {
     res.status(200).json({ message: true });
